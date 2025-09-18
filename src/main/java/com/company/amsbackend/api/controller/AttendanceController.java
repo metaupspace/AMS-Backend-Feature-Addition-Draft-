@@ -1,5 +1,6 @@
 package com.company.amsbackend.api.controller;
 
+import com.company.amsbackend.api.dto.AbsenceReportDto;
 import com.company.amsbackend.api.dto.AgendaCompletionDto;
 import com.company.amsbackend.api.dto.AgendaWithStatusDto;
 import com.company.amsbackend.api.dto.AttendanceResponseDto;
@@ -150,5 +151,22 @@ public class AttendanceController {
                 employeeId, targetDate, targetDate);
 
         return ResponseEntity.ok(records);
+    }
+
+    
+    @GetMapping("/monthly/absent/{employeeId}")
+    public ResponseEntity<AbsenceReportDto> getMonthlyAbsenceReport(
+        @PathVariable String employeeId,
+        @RequestParam int year,
+        @RequestParam int month,        
+        HttpServletRequest httpRequest
+    ){
+        String ip = getIp(httpRequest);
+        String userAgent = getUserAgent(httpRequest);
+        log.info("Get monthly absence report | employeeId: {} | year: {} | month: {} | IP: {} | Device: {}",
+                employeeId, year, month, ip, userAgent);
+
+        AbsenceReportDto response = attendanceService.getMonthlyAbsenceReport(employeeId, year, month);
+        return ResponseEntity.ok(response);
     }
 }

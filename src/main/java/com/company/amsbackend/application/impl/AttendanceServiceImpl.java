@@ -1,5 +1,6 @@
 package com.company.amsbackend.application.impl;
 
+import com.company.amsbackend.api.dto.AbsenceReportDto;
 import com.company.amsbackend.api.dto.AgendaWithStatusDto;
 import com.company.amsbackend.api.dto.AttendanceResponseDto;
 import com.company.amsbackend.api.dto.DailyActivityDto;
@@ -520,5 +521,41 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .attendance(activeAttendance)
                 .agendas(agendaWithStatusDtos)
                 .build();
+    }
+
+
+    
+    @Override
+    @Transactional(readOnly = true)
+    public AbsenceReportDto getMonthlyAbsenceReport(String employeeId, int year, int month) {
+        employeeRepository.findByEmployeeId(employeeId)
+                .orElseThrow(() -> {
+                    log.error("Employee not found | employeeId: {}", employeeId);
+                    return new EmployeeNotFoundException(employeeId);
+                });
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.plusMonths(1).minusDays(1);
+
+        List<Attendance> attendances = attendanceRepository.findByEmployeeIdAndCheckInTimeBetween(
+                employeeId,
+                startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay()
+        );
+
+        Set<LocalDate> presentDates = attendances.stream()
+                .map(att -> att.getCheckInTime().toLocalDate())
+                .collect(Collectors.toSet());
+
+        List<LocalDate> absentDates = startDate.datesUntil(endDate.plusDays(1))
+                .filter(date -> !presentDates.contains(date))
+                .toList();
+
+        AbsenceReportDto response = new AbsenceReportDto(
+                employeeId,
+                year,
+                month,
+                absentDates
+        );
+        return response;
     }
 }
