@@ -1,19 +1,27 @@
 package com.company.amsbackend.api.controller;
 
+import com.company.amsbackend.api.dto.AttendanceEditRequestDto;
+import com.company.amsbackend.api.dto.AttendanceResponseDto;
 import com.company.amsbackend.api.dto.PasswordChangeRequest;
+import com.company.amsbackend.application.service.AttendanceEditRequestService;
 import com.company.amsbackend.application.service.AttendanceService;
 import com.company.amsbackend.application.service.EmployeeService;
+import com.company.amsbackend.domain.entity.AttendanceEditRequest;
 import com.company.amsbackend.domain.entity.Employee;
 import com.company.amsbackend.domain.exception.DomainException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import java.util.Map;
+
+import com.company.amsbackend.domain.entity.AttendanceEditRequest;
+import java.util.*;
 
 @Slf4j
 @RestController
@@ -23,6 +31,7 @@ public class EmployeeController {
 
     private final EmployeeService employeeService;
     private final AttendanceService attendanceService;
+    private final AttendanceEditRequestService attendanceEditRequestService;
 
     private String getIp(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
@@ -67,4 +76,66 @@ public class EmployeeController {
         log.info("Password change success | email: {} | IP: {} | Device: {}", email, ip, userAgent);
         return ResponseEntity.ok().body(Map.of("message", "Password changed successfully"));
     }
+
+    @PostMapping("/attendance-requests")
+    public ResponseEntity<AttendanceEditRequestDto> createAttendanceRequest(
+            Authentication auth,
+            @Valid @RequestBody AttendanceEditRequestDto requestDto,
+            HttpServletRequest httpRequest) {
+
+        String email = auth.getName();
+        String ip = getIp(httpRequest);
+        String userAgent = getUserAgent(httpRequest);
+        log.info("Attendance edit request creation | email: {} | IP: {} | Device: {}", email, ip, userAgent);
+        
+        requestDto.setEmployeeId(employeeService.findByEmail(email)
+                .orElseThrow(() -> {
+                    log.error("Attendance edit request failed - employee not found | email: {} | IP: {} | Device: {}", email, ip, userAgent);
+                    return new DomainException("Employee not found");
+                }).getEmployeeId());
+
+        AttendanceEditRequestDto createdRequest = attendanceEditRequestService.createRequest(requestDto);
+        log.info("Attendance edit request created | requestId: {} | email: {} | IP: {} | Device: {}", email, ip, userAgent);
+        
+
+        return ResponseEntity.ok(createdRequest);
+    }
+
+    @GetMapping("/my-requests")
+    public ResponseEntity<?> getMyRequests(Authentication auth, HttpServletRequest httpRequest) {
+    String email = auth.getName();
+    log.info("Fetch attendance edit requests | email: {} | IP: {}", email, getIp(httpRequest));
+
+    // Fetch employeeId from email
+    String employeeId = employeeService.findByEmail(email)
+            .orElseThrow(() -> new DomainException("Employee not found"))
+            .getEmployeeId();
+
+    List<AttendanceEditRequest> requests = attendanceEditRequestService.getRequestsByEmployeeId(employeeId);
+
+    return ResponseEntity.ok(Map.of(
+            "message", "Fetched your attendance edit requests",
+            "data", requests
+    ));
+    }
+
+    @GetMapping("/{requestId}")
+    public ResponseEntity<?> getRequestById(
+            Authentication auth,
+            @PathVariable String requestId,
+            HttpServletRequest httpRequest) {
+
+        String email = auth.getName();
+        log.info("Fetch specific attendance edit request | employee: {} | requestId: {} | IP: {}", email, requestId, getIp(httpRequest));
+
+        AttendanceEditRequest request = attendanceEditRequestService.getRequestById(requestId);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Fetched attendance edit request",
+                "data", request
+        ));
+    }
+
+    
+
 }
