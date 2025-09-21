@@ -24,6 +24,9 @@ public class AttendanceEditRequest {
     @Id
     private String id;
     private String employeeId;
+
+    private String attendanceId;
+    
     private  LocalDate date;
 
     private LocalDateTime requestCheckIn;

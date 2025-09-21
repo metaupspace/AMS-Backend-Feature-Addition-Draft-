@@ -12,6 +12,7 @@ import com.company.amsbackend.application.service.AttendanceEditRequestService;
 import com.company.amsbackend.domain.entity.Attendance;
 import com.company.amsbackend.domain.entity.AttendanceEditRequest;
 import com.company.amsbackend.domain.enums.RequestStatus;
+import com.company.amsbackend.domain.exception.AttendanceNotFoundException;
 import com.company.amsbackend.infrastructure.repository.AttendanceEditRequestRepository;
 import com.company.amsbackend.infrastructure.repository.AttendanceRepository;
 
@@ -39,21 +40,24 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
             throw new IllegalArgumentException("Check-in time must be before check-out time.");
         }
 
-        List<AttendanceEditRequest> existingRequests = attendanceEditRequestRepository
-                .findByEmployeeId(requestDto.getEmployeeId());
+        LocalDate date = requestDto.getDate();
+        List<Attendance> attendancesOfTheDay = attendanceRepository
+                .findByEmployeeIdAndCheckInTimeBetween(requestDto.getEmployeeId(), date.atStartOfDay(),
+                        date.plusDays(1).atStartOfDay());
 
-        boolean overlap = existingRequests.stream()
-                .filter(req -> req.getDate().isEqual(requestDto.getDate()))
-                .anyMatch(req -> timesOverlap(
+        boolean overlap = attendancesOfTheDay.stream()
+                .filter(att -> att.getId() != null && !att.getId().equals(requestDto.getAttendanceId()))
+                .anyMatch(att -> timesOverlap(
                         requestDto.getRequestCheckIn(), requestDto.getRequestCheckOut(),
-                        req.getRequestCheckIn(), req.getRequestCheckOut()));
+                        att.getCheckInTime(), att.getCheckOutTime()));
 
         if (overlap) {
-            throw new IllegalArgumentException("The requested check-in/out overlaps with an existing record.");
+            throw new IllegalArgumentException("Requested time overlaps with another attendance record.");
         }
 
-        AttendanceEditRequest request = AttendanceEditRequest.builder()
+        AttendanceEditRequest editAttendanceRequest = AttendanceEditRequest.builder()
                 .employeeId(requestDto.getEmployeeId())
+                .attendanceId(requestDto.getAttendanceId())
                 .date(requestDto.getDate())
                 .requestCheckIn(requestDto.getRequestCheckIn())
                 .requestCheckOut(requestDto.getRequestCheckOut())
@@ -61,65 +65,57 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
                 .status(RequestStatus.PENDING)
                 .build();
 
-        AttendanceEditRequest saved = attendanceEditRequestRepository.save(request);
+        AttendanceEditRequest savedEditAttendanceEditRequest = attendanceEditRequestRepository
+                .save(editAttendanceRequest);
 
-        return mapToDto(saved);
+        return mapToDto(savedEditAttendanceEditRequest);
     }
 
     @Override
     public AttendanceEditRequestDto reviewRequest(String requestId, String reviewedBy, boolean approved) {
         AttendanceEditRequest request = attendanceEditRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Request not found with id: " + requestId));
+                .orElseThrow(() -> new AttendanceNotFoundException("Request not found with id: " + requestId));
 
         request.setReviewedBy(reviewedBy);
         request.setReviewedAt(LocalDateTime.now());
         request.setStatus(approved ? RequestStatus.APPROVED : RequestStatus.REJECTED);
 
         if (approved) {
-            LocalDate date = request.getDate();
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+            Attendance attendance = attendanceRepository.findById(request.getAttendanceId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Attendance record not found with id: " + request.getAttendanceId()));
 
-            List<Attendance> attendances = attendanceRepository
-                    .findByEmployeeIdAndCheckInTimeBetween(request.getEmployeeId(), startOfDay, endOfDay);
-
-            log.info("Found {} attendance records for employee {} on {}", attendances.size(), request.getEmployeeId(), date);
-            if (attendances.isEmpty()) {
-                throw new IllegalArgumentException("No attendance record found for employee on " + date);
-            }
-
-            Attendance attendance = attendances.get(0); // assuming 1 record per day
             attendance.setCheckInTime(request.getRequestCheckIn());
             attendance.setCheckOutTime(request.getRequestCheckOut());
             attendanceRepository.save(attendance);
         }
 
-        AttendanceEditRequest updated = attendanceEditRequestRepository.save(request);
-        return mapToDto(updated);
+        AttendanceEditRequest UpdatedAttendance = attendanceEditRequestRepository.save(request);
+        return mapToDto(UpdatedAttendance);
     }
 
     @Override
     public List<AttendanceEditRequest> getRequestsByEmployeeId(String employeeId) {
-        List<AttendanceEditRequest> requests = attendanceEditRequestRepository.findByEmployeeId(employeeId);
-        return requests;
+        return attendanceEditRequestRepository.findByEmployeeId(employeeId);
     }
 
     @Override
     public List<AttendanceEditRequest> getAllRequests() {
-        List<AttendanceEditRequest> requests = attendanceEditRequestRepository.findAll();
-        return requests;
+        return attendanceEditRequestRepository.findAll();
+
     }
 
     @Override
     public AttendanceEditRequest getRequestById(String requestId) {
-        AttendanceEditRequest request = attendanceEditRequestRepository.findById(requestId)
+        return attendanceEditRequestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Request not found with id: " + requestId));
-        return request;
+
     }
 
     private AttendanceEditRequestDto mapToDto(AttendanceEditRequest request) {
         return AttendanceEditRequestDto.builder()
                 .employeeId(request.getEmployeeId())
+                .attendanceId(request.getAttendanceId())
                 .date(request.getDate())
                 .requestCheckIn(request.getRequestCheckIn())
                 .requestCheckOut(request.getRequestCheckOut())
@@ -128,10 +124,11 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
     }
 
     private boolean timesOverlap(LocalDateTime start1, LocalDateTime end1,
-            LocalDateTime start2, LocalDateTime end2) {
-        if (start1 == null || end1 == null || start2 == null || end2 == null)
+        LocalDateTime start2, LocalDateTime end2) {
+        if (start1 == null || end1 == null || start2 == null || end2 == null) {
             return false;
-        return start1.isBefore(end2) && start2.isBefore(end1);
+        }
+        return !start1.isAfter(end2) && !start2.isAfter(end1);
     }
 
 }

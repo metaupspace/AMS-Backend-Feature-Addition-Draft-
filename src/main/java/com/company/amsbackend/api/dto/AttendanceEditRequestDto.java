@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AttendanceEditRequestDto {
     private String employeeId;
+    private String attendanceId;
 
     private LocalDate date;
 
