@@ -39,22 +39,7 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
                 requestDto.getRequestCheckIn().isAfter(requestDto.getRequestCheckOut())) {
             throw new IllegalArgumentException("Check-in time must be before check-out time.");
         }
-
-        LocalDate date = requestDto.getDate();
-        List<Attendance> attendancesOfTheDay = attendanceRepository
-                .findByEmployeeIdAndCheckInTimeBetween(requestDto.getEmployeeId(), date.atStartOfDay(),
-                        date.plusDays(1).atStartOfDay());
-
-        boolean overlap = attendancesOfTheDay.stream()
-                .filter(att -> att.getId() != null && !att.getId().equals(requestDto.getAttendanceId()))
-                .anyMatch(att -> timesOverlap(
-                        requestDto.getRequestCheckIn(), requestDto.getRequestCheckOut(),
-                        att.getCheckInTime(), att.getCheckOutTime()));
-
-        if (overlap) {
-            throw new IllegalArgumentException("Requested time overlaps with another attendance record.");
-        }
-
+        
         AttendanceEditRequest editAttendanceRequest = AttendanceEditRequest.builder()
                 .employeeId(requestDto.getEmployeeId())
                 .attendanceId(requestDto.getAttendanceId())
@@ -121,14 +106,6 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
                 .requestCheckOut(request.getRequestCheckOut())
                 .reason(request.getReason())
                 .build();
-    }
-
-    private boolean timesOverlap(LocalDateTime start1, LocalDateTime end1,
-        LocalDateTime start2, LocalDateTime end2) {
-        if (start1 == null || end1 == null || start2 == null || end2 == null) {
-            return false;
-        }
-        return !start1.isAfter(end2) && !start2.isAfter(end1);
     }
 
 }
