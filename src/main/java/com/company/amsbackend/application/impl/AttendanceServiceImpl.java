@@ -558,4 +558,15 @@ public class AttendanceServiceImpl implements AttendanceService {
         );
         return response;
     }
+
+
+    @Override
+    public Optional<Attendance> findById(String attendanceId){
+        return attendanceRepository.findById(attendanceId);
+    }
+
+    @Override
+    public Attendance save(Attendance attendance){
+        return attendanceRepository.save(attendance);
+    }
 }

@@ -1,5 +1,6 @@
 package com.company.amsbackend.application.impl;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -72,6 +73,14 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
 
             attendance.setCheckInTime(request.getRequestCheckIn());
             attendance.setCheckOutTime(request.getRequestCheckOut());
+            if (request.getRequestCheckIn() != null && request.getRequestCheckOut() != null) {
+            long minutesWorked = Duration.between(
+                    request.getRequestCheckIn(),
+                    request.getRequestCheckOut()
+            ).toMinutes();
+
+            attendance.setMinutesWorked(minutesWorked); 
+        }
             attendanceRepository.save(attendance);
         }
 
@@ -99,6 +108,7 @@ public class AttendanceEditRequestServiceImpl implements AttendanceEditRequestSe
 
     private AttendanceEditRequestDto mapToDto(AttendanceEditRequest request) {
         return AttendanceEditRequestDto.builder()
+                .id(request.getId())
                 .employeeId(request.getEmployeeId())
                 .attendanceId(request.getAttendanceId())
                 .date(request.getDate())

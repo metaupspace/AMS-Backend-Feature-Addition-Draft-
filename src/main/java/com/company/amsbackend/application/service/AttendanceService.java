@@ -10,6 +10,7 @@ import com.microsoft.schemas.office.office.STInsetMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface AttendanceService {
     AttendanceResponseDto checkIn(String employeeId, List<String> agendaTitles, String location);
@@ -26,4 +27,7 @@ public interface AttendanceService {
 
     AttendanceResponseDto getActiveSession(String employeeId);
     AbsenceReportDto getMonthlyAbsenceReport(String employeeId, int year, int month);
+
+    Optional<Attendance> findById(String attendanceId);
+    Attendance save(Attendance attendance);
 }

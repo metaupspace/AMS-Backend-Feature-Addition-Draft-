@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.company.amsbackend.domain.enums.RequestStatus;
 
 @Data
 @Builder
@@ -38,4 +39,7 @@ public class Attendance {
     private boolean activeSession;
 
     private Long minutesWorked;
+    
+    private RequestStatus editRequestStatus;
+    private String editRequestId;
 }

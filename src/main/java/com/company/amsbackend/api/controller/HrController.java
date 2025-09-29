@@ -13,6 +13,10 @@ import com.company.amsbackend.application.service.ScheduledReportService;
 import com.company.amsbackend.domain.entity.AttendanceEditRequest;
 import com.company.amsbackend.domain.entity.Employee;
 import com.company.amsbackend.domain.enums.EmployeeRole;
+import com.company.amsbackend.domain.enums.RequestStatus;
+import com.company.amsbackend.domain.exception.AttendanceNotFoundException;
+import com.company.amsbackend.domain.entity.Attendance;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -199,13 +203,30 @@ public class HrController {
                 String hrEmail = auth.getName();
                 String ip = getIp(httpRequest);
                 String userAgent = getUserAgent(httpRequest);
-                log.info("Review attendance edit request | HR: {} | requestId: {} | approved: {} | IP: {} | Device: {}",
-                                hrEmail, requestId, approved, ip, userAgent);
+
                 AttendanceEditRequestDto EditAttendancereviewed = attendanceEditRequestService.reviewRequest(requestId,
                                 hrEmail,
                                 approved);
                 log.info("Attendance edit request reviewed | HR: {} | requestId: {} | status: {}", hrEmail, requestId,
                                 EditAttendancereviewed);
+                try {
+                        Attendance attendance = attendanceService.findById(EditAttendancereviewed.getAttendanceId())
+                                        .orElseThrow(() -> new AttendanceNotFoundException(
+                                                        EditAttendancereviewed.getAttendanceId()));
+                        if (approved) {
+                                attendance.setEditRequestStatus(RequestStatus.APPROVED);
+                        } else {
+                                attendance.setEditRequestStatus(RequestStatus.REJECTED);
+                        }
+                        
+                        attendanceService.save(attendance);
+
+                } catch (Exception e) {
+                        log.error("Failed to update Attendance editRequestStatus for requestId={} | Error={}",
+                                        requestId, e.getMessage());
+                }
+                log.info("Review attendance edit request | HR: {} | requestId: {} | approved: {} | IP: {} | Device: {}",
+                                hrEmail, requestId, approved, ip, userAgent);
                 return ResponseEntity.ok(EditAttendancereviewed);
         }
 
@@ -239,11 +260,10 @@ public class HrController {
 
         @GetMapping("/{empolyeeId}")
         public ResponseEntity<List<AttendanceEditRequest>> getRequestsByEmployeeId(
-                Authentication auth,
-                @PathVariable String employeeId,
-                HttpServletRequest httpRequest
-        ){
-                List<AttendanceEditRequest>  response = attendanceEditRequestService.getRequestsByEmployeeId(employeeId);
+                        Authentication auth,
+                        @PathVariable String employeeId,
+                        HttpServletRequest httpRequest) {
+                List<AttendanceEditRequest> response = attendanceEditRequestService.getRequestsByEmployeeId(employeeId);
                 return ResponseEntity.ok(response);
         }
 
