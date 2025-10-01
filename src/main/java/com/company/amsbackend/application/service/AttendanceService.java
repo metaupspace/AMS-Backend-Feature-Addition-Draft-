@@ -5,7 +5,7 @@ import com.company.amsbackend.api.dto.AgendaWithStatusDto;
 import com.company.amsbackend.api.dto.AttendanceResponseDto;
 import com.company.amsbackend.api.dto.DailyActivityDto;
 import com.company.amsbackend.domain.entity.Attendance;
-import com.microsoft.schemas.office.office.STInsetMode;
+
 
 import java.time.LocalDate;
 import java.util.List;

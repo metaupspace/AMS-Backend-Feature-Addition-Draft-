@@ -204,21 +204,21 @@ public class HrController {
                 String ip = getIp(httpRequest);
                 String userAgent = getUserAgent(httpRequest);
 
-                AttendanceEditRequestDto EditAttendancereviewed = attendanceEditRequestService.reviewRequest(requestId,
+                AttendanceEditRequestDto editAttendancereviewed = attendanceEditRequestService.reviewRequest(requestId,
                                 hrEmail,
                                 approved);
                 log.info("Attendance edit request reviewed | HR: {} | requestId: {} | status: {}", hrEmail, requestId,
-                                EditAttendancereviewed);
+                                editAttendancereviewed);
                 try {
-                        Attendance attendance = attendanceService.findById(EditAttendancereviewed.getAttendanceId())
+                        Attendance attendance = attendanceService.findById(editAttendancereviewed.getAttendanceId())
                                         .orElseThrow(() -> new AttendanceNotFoundException(
-                                                        EditAttendancereviewed.getAttendanceId()));
+                                                        editAttendancereviewed.getAttendanceId()));
                         if (approved) {
                                 attendance.setEditRequestStatus(RequestStatus.APPROVED);
                         } else {
                                 attendance.setEditRequestStatus(RequestStatus.REJECTED);
                         }
-                        
+
                         attendanceService.save(attendance);
 
                 } catch (Exception e) {
@@ -227,7 +227,7 @@ public class HrController {
                 }
                 log.info("Review attendance edit request | HR: {} | requestId: {} | approved: {} | IP: {} | Device: {}",
                                 hrEmail, requestId, approved, ip, userAgent);
-                return ResponseEntity.ok(EditAttendancereviewed);
+                return ResponseEntity.ok(editAttendancereviewed);
         }
 
         @GetMapping("/getall-requests")
@@ -237,34 +237,8 @@ public class HrController {
                 String ip = getIp(httpRequest);
                 log.info("Fetch all attendance edit requests | HR: {} | IP: {}", hrEmail, ip);
 
-                List<AttendanceEditRequest> EditAttendanceRequests = attendanceEditRequestService.getAllRequests();
+                List<AttendanceEditRequest> editAttendanceRequests = attendanceEditRequestService.getAllRequests();
 
-                return ResponseEntity.ok(EditAttendanceRequests);
+                return ResponseEntity.ok(editAttendanceRequests);
         }
-
-        @GetMapping("/{requestId}")
-        public ResponseEntity<AttendanceEditRequest> getRequestById(
-                        Authentication auth,
-                        @PathVariable String requestId,
-                        HttpServletRequest httpRequest) {
-
-                String email = auth.getName();
-                log.info("Fetch specific attendance edit request | employee: {} | requestId: {} | IP: {}", email,
-                                requestId,
-                                getIp(httpRequest));
-
-                AttendanceEditRequest request = attendanceEditRequestService.getRequestById(requestId);
-
-                return ResponseEntity.ok(request);
-        }
-
-        @GetMapping("/{empolyeeId}")
-        public ResponseEntity<List<AttendanceEditRequest>> getRequestsByEmployeeId(
-                        Authentication auth,
-                        @PathVariable String employeeId,
-                        HttpServletRequest httpRequest) {
-                List<AttendanceEditRequest> response = attendanceEditRequestService.getRequestsByEmployeeId(employeeId);
-                return ResponseEntity.ok(response);
-        }
-
 }
